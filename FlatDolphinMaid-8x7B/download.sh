@@ -1,0 +1,1 @@
+huggingface-cli download TheBloke/FlatDolphinMaid-8x7B-GGUF flatdolphinmaid-8x7b.Q5_K_M.gguf --local-dir . --local-dir-use-symlinks False
