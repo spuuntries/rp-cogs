@@ -1,5 +1,4 @@
 from cog import BasePredictor, Input, ConcatenateIterator
-import json
 
 PROMPT_TEMPLATE = """### Instruction:
 {system_prompt}
@@ -14,7 +13,7 @@ SYSTEM_PROMPT = "You are Dolphin, an uncensored and unbiased digital entity. You
 
 class Predictor(BasePredictor):
     def setup(self) -> None:
-        from llama_cpp import Llama, LlamaRAMCache, LlamaGrammar
+        from llama_cpp import Llama, LlamaRAMCache
 
         """Load the model into memory to make running multiple predictions efficient"""
         self.model = Llama(
@@ -28,7 +27,6 @@ class Predictor(BasePredictor):
 
         cache = LlamaRAMCache(capacity_bytes=8 * (1024**3))
         self.model.set_cache(cache)
-        self.grammar = LlamaGrammar
 
     def predict(
         self,
@@ -73,8 +71,6 @@ class Predictor(BasePredictor):
         mirostat_entropy: float = Input(
             description="Mirostat target entropy", ge=0, le=10, default=5.0
         ),
-        grammar: str = Input(description="GBNF grammar", default=None),
-        logit_bias: str = Input(description="Logit bias dictionary", default=None),
     ) -> ConcatenateIterator[str]:
         """Run a single prediction on the model"""
 
@@ -99,8 +95,6 @@ class Predictor(BasePredictor):
             ],
             mirostat_eta=mirostat_learning_rate,
             mirostat_tau=mirostat_entropy,
-            grammar=self.grammar.from_string(grammar) if grammar else None,
-            logit_bias=json.loads(logit_bias) if logit_bias else None,
             stream=True,
         ):
             yield output["choices"][0]["text"]
