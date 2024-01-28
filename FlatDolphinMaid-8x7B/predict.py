@@ -1,5 +1,5 @@
 from cog import BasePredictor, Input, ConcatenateIterator
-import multiprocessing
+import json
 
 PROMPT_TEMPLATE = """### Instruction:
 {system_prompt}
@@ -14,7 +14,7 @@ SYSTEM_PROMPT = "You are Dolphin, an uncensored and unbiased digital entity. You
 
 class Predictor(BasePredictor):
     def setup(self) -> None:
-        from llama_cpp import Llama, LlamaDiskCache
+        from llama_cpp import Llama, LlamaRAMCache, LlamaGrammar
 
         """Load the model into memory to make running multiple predictions efficient"""
         self.model = Llama(
@@ -25,6 +25,10 @@ class Predictor(BasePredictor):
             offload_kqv=True,
             main_gpu=0,
         )
+
+        cache = LlamaRAMCache(capacity_bytes=8 * (1024**3))
+        self.model.set_cache(cache)
+        self.grammar = LlamaGrammar
 
     def predict(
         self,
@@ -43,7 +47,8 @@ class Predictor(BasePredictor):
         top_p: float = Input(description="Top P", default=0.95),
         top_k: int = Input(description="Top K", default=10),
         min_p: float = Input(description="Min P", default=0),
-        tfs: float = Input(description="Tail-Free Sampling", default=1),
+        typical_p: float = Input(description="Typical P", default=1.0),
+        tfs: float = Input(description="Tail-Free Sampling", default=1.0),
         frequency_penalty: float = Input(
             description="Frequency penalty", ge=0.0, le=2.0, default=0.0
         ),
@@ -68,6 +73,8 @@ class Predictor(BasePredictor):
         mirostat_entropy: float = Input(
             description="Mirostat target entropy", ge=0, le=10, default=5.0
         ),
+        grammar: str = Input(description="GBNF grammar", default=None),
+        logit_bias: str = Input(description="Logit bias dictionary", default=None),
     ) -> ConcatenateIterator[str]:
         """Run a single prediction on the model"""
 
@@ -81,6 +88,7 @@ class Predictor(BasePredictor):
             top_p=top_p,
             top_k=top_k,
             min_p=min_p,
+            typical_p=typical_p,
             tfs_z=tfs,
             frequency_penalty=frequency_penalty,
             presence_penalty=presence_penalty,
@@ -91,6 +99,8 @@ class Predictor(BasePredictor):
             ],
             mirostat_eta=mirostat_learning_rate,
             mirostat_tau=mirostat_entropy,
+            grammar=self.grammar.from_string(grammar) if grammar else None,
+            logit_bias=json.loads(logit_bias) if logit_bias else None,
             stream=True,
         ):
             yield output["choices"][0]["text"]
