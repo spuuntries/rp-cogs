@@ -25,7 +25,7 @@ class Predictor(BasePredictor):
             main_gpu=0,
         )
 
-        cache = LlamaRAMCache(capacity_bytes=8 * (1024**3))
+        cache = LlamaRAMCache()
         self.model.set_cache(cache)
 
     def predict(
