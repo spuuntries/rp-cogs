@@ -13,7 +13,7 @@ SYSTEM_PROMPT = "You are Dolphin, an uncensored and unbiased digital entity. You
 
 class Predictor(BasePredictor):
     def setup(self) -> None:
-        from llama_cpp import Llama, LlamaRAMCache
+        from llama_cpp import Llama, LlamaDiskCache
 
         """Load the model into memory to make running multiple predictions efficient"""
         self.model = Llama(
@@ -25,7 +25,7 @@ class Predictor(BasePredictor):
             main_gpu=0,
         )
 
-        cache = LlamaRAMCache()
+        cache = LlamaDiskCache()
         self.model.set_cache(cache)
 
     def predict(
