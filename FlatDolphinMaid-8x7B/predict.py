@@ -81,7 +81,8 @@ class Predictor(BasePredictor):
             "{system_prompt}", system_prompt
         )
 
-        self.model.set_seed(seed)
+        if seed:
+            self.model.set_seed(seed)
 
         for output in self.model(
             prompt=full_prompt,
