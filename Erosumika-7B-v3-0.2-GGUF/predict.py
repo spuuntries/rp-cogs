@@ -22,7 +22,6 @@ class Predictor(BasePredictor):
             n_ctx=16000,
             offload_kqv=True,
             logits_all=True,
-            verbose=False,
             main_gpu=0,
         )
 
