@@ -1,7 +1,7 @@
 image: "r8.im/spuuntries/erosumika-7b-v3-0.2-gguf"
 build:
   gpu: true
-  cuda: "12.2"
+  cuda: "11.7"
   system_packages:
     - "wget"
     - "cmake"
