@@ -1,0 +1,13 @@
+image: "r8.im/spuuntries/erosumika-7b-v3-0.2-gguf"
+build:
+  gpu: true
+  cuda: "12.2"
+  system_packages:
+    - "wget"
+    - "cmake"
+    - "g++"
+    - "build-essential"
+  python_version: "3.11"
+  run:
+    - "CMAKE_ARGS='-DLLAMA_CUBLAS=on' FORCE_CMAKE=1 pip install llama-cpp-python --no-cache-dir"
+predict: "predict.py:Predictor"
