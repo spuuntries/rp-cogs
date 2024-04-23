@@ -1,0 +1,24 @@
+image: "r8.im/spuuntries/hermes-2-pro-mistral-7b"
+build:
+  gpu: true
+  cuda: "12.2"
+  system_packages:
+    - "wget"
+    - "cmake"
+    - "g++"
+    - "build-essential"
+  python_version: "3.11"
+  python_packages:
+    - cog==0.9.6
+    - huggingface_hub[cli]==0.20.3
+    - hf_transfer==0.1.6
+    - repeng==0.2.2
+    - transformers==4.38.2
+    - torch==2.2.1
+    - bitsandbytes==0.43.1
+    - sentencepiece==0.1.99
+    - protobuf==3.20.3
+    - flash-attn==2.5.7
+  run:
+    - "pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu112"
+predict: "predict.py:Predictor"
