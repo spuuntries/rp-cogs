@@ -2,7 +2,7 @@ from transformers import LlamaTokenizer, MistralForCausalLM, set_seed
 from cog import BasePredictor, Input, ConcatenateIterator, Path
 from repeng import ControlVector, ControlModel
 from huggingface_hub import snapshot_download
-from .hijack import hijack_samplers
+from hijack import hijack_samplers
 import bitsandbytes, flash_attn
 import numpy as np
 import torch

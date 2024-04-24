@@ -18,7 +18,7 @@ build:
     - bitsandbytes==0.43.1
     - sentencepiece==0.1.99
     - protobuf==3.20.3
-    - flash-attn==2.5.7
   run:
     - "pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu112"
+    - "pip install flash-attn --no-build-isolation"
 predict: "predict.py:Predictor"
