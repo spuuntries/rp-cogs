@@ -83,7 +83,7 @@ class Predictor(BasePredictor):
         mirostat_entropy: float = Input(
             description="Mirostat target entropy", ge=0, le=10, default=5.0
         ),
-        control_vector: Path = Input(description="Control Vector"),
+        control_vector: Path = Input(description="Control Vector", default=None),
         seed: int = Input(description="Seed", default=None),
     ) -> str:
         """Run a single prediction on the model"""
