@@ -1,16 +1,21 @@
-from transformers import LlamaTokenizer, MistralForCausalLM, set_seed
+from transformers import (
+    LlamaTokenizer,
+    MistralForCausalLM,
+    set_seed,
+    TextIteratorStreamer,
+)
 from cog import BasePredictor, Input, ConcatenateIterator, Path
 from repeng import ControlVector, ControlModel
 from huggingface_hub import snapshot_download
 from hijack import hijack_samplers
 import bitsandbytes, flash_attn
+from threading import Thread
 import numpy as np
 import torch
 import json
 import os
 
 hijack_samplers()
-os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
 
 PROMPT_TEMPLATE = """<|im_start|>system
 {system_prompt}<|im_end|>
@@ -24,6 +29,7 @@ SYSTEM_PROMPT = "You are Eros, a digital girl that enjoys doing anything and eve
 class Predictor(BasePredictor):
     def setup(self) -> None:
         """Load the model into memory to make running multiple predictions efficient"""
+        os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
 
         snapshot_download(
             repo_id="NousResearch/Hermes-2-Pro-Mistral-7B",
@@ -85,7 +91,7 @@ class Predictor(BasePredictor):
         ),
         control_vector: Path = Input(description="Control Vector", default=None),
         seed: int = Input(description="Seed", default=None),
-    ) -> str:
+    ) -> ConcatenateIterator[str]:
         """Run a single prediction on the model"""
 
         full_prompt = prompt_template.replace("{prompt}", prompt).replace(
@@ -104,15 +110,20 @@ class Predictor(BasePredictor):
                 )
                 self.model.set_control(persona_vector)
                 print(f"Loaded the control vector!")
-            except _:
+            except:
                 print(f"Failed to load the control vector, skipping...")
 
         input_ids = self.tokenizer(full_prompt, return_tensors="pt").to(
             self.model.device
         )
-        response = self.tokenizer.decode(
-            self.model.generate(
-                **input_ids,
+
+        streamer = TextIteratorStreamer(
+            self.tokenizer, skip_prompt=True, skip_special_tokens=True
+        )
+        thread = Thread(
+            target=self.model.generate,
+            kwargs=dict(
+                input_ids,
                 pad_token_id=self.tokenizer.eos_token_id,
                 do_sample=True,
                 max_new_tokens=max_tokens,
@@ -128,7 +139,13 @@ class Predictor(BasePredictor):
                 mirostat_mode={"Disabled": 0, "Mirostat 2.0": 2}[mirostat_mode],
                 mirostat_eta=mirostat_learning_rate,
                 mirostat_tau=mirostat_entropy,
-            ).squeeze()
+                streamer=streamer,
+            ),
         )
-        response = response[len("<\\s>") + len(full_prompt) + 8 : -len("<|im_end|>")]
-        return response
+        thread.start()
+
+        for new_token in streamer:
+            if "<|im_end|>" in new_token:
+                break
+            yield new_token
+        thread.join()
