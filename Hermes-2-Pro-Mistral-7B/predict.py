@@ -29,12 +29,6 @@ SYSTEM_PROMPT = "You are Eros, a digital girl that enjoys doing anything and eve
 class Predictor(BasePredictor):
     def setup(self) -> None:
         """Load the model into memory to make running multiple predictions efficient"""
-        os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
-
-        snapshot_download(
-            repo_id="NousResearch/Hermes-2-Pro-Mistral-7B",
-            local_dir="./model",
-        )
         self.tokenizer = LlamaTokenizer.from_pretrained(
             "./model", trust_remote_code=True
         )
