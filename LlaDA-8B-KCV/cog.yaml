@@ -1,4 +1,4 @@
-image: "r8.im/spuuntries/hermes-2-pro-mistral-7b"
+image: "r8.im/spuuntries/llada-8b-kcv"
 build:
   gpu: true
   cuda: "12.2"
@@ -18,7 +18,4 @@ build:
     - bitsandbytes==0.43.1
     - sentencepiece==0.1.99
     - protobuf==3.20.3
-  run:
-    - "pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu112"
-    - "pip install flash-attn --no-build-isolation"
 predict: "predict.py:Predictor"
