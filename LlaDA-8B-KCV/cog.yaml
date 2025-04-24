@@ -10,7 +10,7 @@ build:
   python_version: "3.11"
   python_packages:
     - cog==0.9.6
-    - huggingface_hub[cli]==0.20.3
+    - huggingface_hub[cli]==0.30.1
     - hf_transfer==0.1.6
     - repeng==0.2.2
     - transformers==4.38.2
