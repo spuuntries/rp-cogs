@@ -8,6 +8,7 @@ from tqdm import tqdm
 import torch.nn.functional as F
 import numpy as np
 import torch
+import json
 
 PROMPT_TEMPLATE = """<|startoftext|><|start_header_id|>system<|end_header_id|>
 
@@ -239,6 +240,10 @@ class Predictor(BasePredictor):
             choices=["low_confidence", "random"],
             default="low_confidence",
         ),
+        constraints: str = Input(
+            description="JSON string of position-word pairs for constrained generation",
+            default="{}",
+        ),
         seed: int = Input(
             description="Random seed for reproducible generation", default=None
         ),
@@ -254,7 +259,21 @@ class Predictor(BasePredictor):
         # Format full prompt
         full_prompt = prompt_template.format(prompt=prompt, system_prompt=system_prompt)
 
-        # Generate states
+        # Parse constraints JSON
+        try:
+            constraints_dict = json.loads(constraints)
+            # Convert string positions to integers
+            constraints_dict = {int(k): v for k, v in constraints_dict.items()}
+        except json.JSONDecodeError:
+            print("Warning: Invalid constraints JSON, ignoring constraints")
+            constraints_dict = {}
+        except ValueError:
+            print(
+                "Warning: Constraints positions must be integers, ignoring constraints"
+            )
+            constraints_dict = {}
+
+        # Generate states with constraints
         states = generate_with_llada_states(
             model=self.model,
             tokenizer=self.tokenizer,
@@ -265,6 +284,7 @@ class Predictor(BasePredictor):
             block_length=block_length,
             cfg_scale=cfg_scale,
             remasking=remasking,
+            constraints=constraints_dict,
             device="cuda",
         )
 
