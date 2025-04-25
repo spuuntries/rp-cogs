@@ -233,6 +233,11 @@ class Predictor(BasePredictor):
         cfg_scale: float = Input(
             description="Classifier-free guidance scale", default=0.0, ge=0.0
         ),
+        remasking: str = Input(
+            description="Token remasking strategy",
+            choices=["low_confidence", "random"],
+            default="low_confidence",
+        ),
         seed: int = Input(
             description="Random seed for reproducible generation", default=None
         ),
@@ -258,6 +263,7 @@ class Predictor(BasePredictor):
             steps=steps,
             block_length=block_length,
             cfg_scale=cfg_scale,
+            remasking=remasking,
             device="cuda",
         )
 
