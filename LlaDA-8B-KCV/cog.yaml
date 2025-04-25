@@ -8,7 +8,7 @@ build:
     - "g++"
     - "build-essential"
   python_version: "3.11"
-  python_requirements:
+  python_packages:
     - cog==0.9.6
     - huggingface_hub[cli]==0.30.1
     - hf_transfer==0.1.6
