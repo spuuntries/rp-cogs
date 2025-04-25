@@ -73,7 +73,7 @@ def generate_with_llada_states(
                 text.append(MASK_SYMBOL)
             else:
                 # Decode single token while preserving whitespace
-                token_text = tokenizer.decode([token_id], skip_special_tokens=True)
+                token_text = tokenizer.decode([token_id])
                 text.append(token_text)
         return "".join(text)
 
