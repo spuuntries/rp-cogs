@@ -3,6 +3,7 @@ from transformers import AutoTokenizer, AutoModel
 from peft.peft_model import PeftModel
 from typing import Union, List
 from threading import Thread
+from tqdm import tqdm
 
 import torch.nn.functional as F
 import numpy as np
@@ -127,7 +128,7 @@ def generate_with_llada_states(
         )
         num_transfer_tokens[:, :remainder] += 1
 
-        for i in range(steps_per_block):
+        for i in tqdm(range(steps_per_block)):
             mask_index = x == MASK_ID
             if not mask_index.any():
                 break
