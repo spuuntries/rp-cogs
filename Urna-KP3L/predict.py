@@ -1,14 +1,12 @@
-from cog import BasePredictor, Input, Path, ConcatenateIterator
+from cog import BasePredictor, Input, Path
 import os
-import re
 import time
 import torch
 import subprocess
 import numpy as np
 import timm
 from PIL import Image
-from threading import Thread
-from transformers import TextIteratorStreamer, AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM
 from torchvision import transforms
 from torch import nn
 import torch.nn.functional as F
@@ -43,7 +41,7 @@ class MLP(nn.Module):
 class VisionProjection(nn.Module):
     def __init__(self, vision_dim, llama_dim, num_groups=4):
         super().__init__()
-        hidden_dim = llama_dim * 4
+        hidden_dim = llama_dim * 2
         self.num_groups = num_groups
         self.target_channels = vision_dim  # 2048
 
@@ -231,7 +229,7 @@ class MultimodalLlama(nn.Module):
                 input_ids=input_ids, attention_mask=attention_mask, labels=labels
             )
 
-    def generate(self, input_ids, multi_layer_features=None, streamer=None, **kwargs):
+    def generate(self, input_ids, multi_layer_features=None, **kwargs):
         if multi_layer_features is not None:
             inputs_embeds = self.llama.get_input_embeddings()(input_ids)
             image_embeds = self.encode_image(multi_layer_features)
@@ -245,11 +243,9 @@ class MultimodalLlama(nn.Module):
                     dim=1,
                 )
 
-            return self.llama.generate(
-                inputs_embeds=inputs_embeds, streamer=streamer, **kwargs
-            )
+            return self.llama.generate(inputs_embeds=inputs_embeds, **kwargs)
         else:
-            return self.llama.generate(input_ids=input_ids, streamer=streamer, **kwargs)
+            return self.llama.generate(input_ids=input_ids, **kwargs)
 
 
 class Predictor(BasePredictor):
@@ -295,12 +291,16 @@ class Predictor(BasePredictor):
         self.model.llama.resize_token_embeddings(len(self.model.tokenizer))
 
         # Load trained weights
-        model_path = os.path.join(MODEL_CACHE, "model.pt")  # Adjust path as needed
+        model_path = os.path.join(
+            MODEL_CACHE, "model-fp-nlp-2025-06-19_08-31-17.pt"
+        )  # Adjust path as needed
         if os.path.exists(model_path):
             self.model.load_state_dict(torch.load(model_path, map_location="cuda"))
 
         self.model.to("cuda")
         self.tokenizer = self.model.tokenizer
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
 
         print("Setup took: ", time.time() - start)
 
@@ -342,38 +342,37 @@ class Predictor(BasePredictor):
             le=2048,
         ),
         temperature: float = Input(
-            description="Temperature for sampling", default=0.7, ge=0.1, le=2.0
+            description="Temperature for sampling (0 to use transformer defaults)",
+            default=0,
+            ge=0,
+            le=2.0,
         ),
         top_p: float = Input(
-            description="Top-p (nucleus) sampling parameter",
-            default=0.6,
-            ge=0.0,
+            description="Top-p (nucleus) sampling parameter (0 to use transformer defaults)",
+            default=0,
+            ge=0,
             le=1.0,
         ),
         top_k: int = Input(
-            description="Top-k sampling parameter (0 to disable)",
+            description="Top-k sampling parameter (0 to disable/use transformer defaults)",
             default=0,
             ge=0,
             le=100,
         ),
         repetition_penalty: float = Input(
-            description="Repetition penalty", default=1.0, ge=0.1, le=2.0
+            description="Repetition penalty (0 to use transformer defaults)",
+            default=0,
+            ge=0,
+            le=2.0,
         ),
         do_sample: bool = Input(description="Whether to use sampling", default=True),
-        num_beams: int = Input(
-            description="Number of beams for beam search (1 for no beam search)",
-            default=1,
-            ge=1,
-            le=8,
-        ),
-    ) -> ConcatenateIterator[str]:
+    ) -> str:
         """Run a single prediction on the model"""
 
         # Get image embeddings
         multi_layer_features, shapes = self.get_multi_layer_embeddings(image)
         if multi_layer_features is None:
-            yield "Error processing image"
-            return
+            return "Error processing image"
 
         # Convert numpy arrays to tensors if needed
         feature_tensors = []
@@ -385,7 +384,13 @@ class Predictor(BasePredictor):
             feature_tensors.append(feat_tensor)
 
         # Prepare the prompt
-        full_prompt = f"<image>\n{prompt} "
+        full_prompt = self.tokenizer.apply_chat_template(
+            [
+                {"role": "user", "content": "<image>\n" + prompt},
+            ],
+            add_generation_prompt=True,
+            tokenize=False,
+        )
 
         # Tokenize
         inputs = self.tokenizer(
@@ -396,50 +401,35 @@ class Predictor(BasePredictor):
             max_length=max_new_tokens + 100,  # Add buffer for prompt
         ).to("cuda")
 
-        # Setup generation parameters
+        # Setup generation parameters - only include non-zero values
         generation_kwargs = {
             "max_new_tokens": max_new_tokens,
             "do_sample": do_sample,
-            "temperature": temperature,
-            "top_p": top_p,
-            "repetition_penalty": repetition_penalty,
             "pad_token_id": self.tokenizer.pad_token_id,
             "eos_token_id": self.tokenizer.eos_token_id,
-            "num_beams": num_beams,
             "use_cache": False,
         }
 
-        # Add top_k if specified
+        # Only add parameters if they're not zero (use transformer defaults when 0)
+        if temperature > 0:
+            generation_kwargs["temperature"] = temperature
+        if top_p > 0:
+            generation_kwargs["top_p"] = top_p
         if top_k > 0:
             generation_kwargs["top_k"] = top_k
+        if repetition_penalty > 0:
+            generation_kwargs["repetition_penalty"] = repetition_penalty
 
-        # Setup streaming
-        streamer = TextIteratorStreamer(self.tokenizer, skip_special_tokens=True)
-        generation_kwargs["streamer"] = streamer
-
-        # Start generation in separate thread
-        thread = Thread(
-            target=self.model.generate,
-            kwargs={
-                "input_ids": inputs.input_ids,
-                "multi_layer_features": [feature_tensors],  # Wrap in list for batch
+        # Generate response
+        with torch.no_grad():
+            outputs = self.model.generate(
+                input_ids=inputs.input_ids,
+                multi_layer_features=[feature_tensors],  # Wrap in list for batch
                 **generation_kwargs,
-            },
-        )
-        thread.start()
+            )
 
-        # Stream the response
-        full_response = ""
-        for new_text in streamer:
-            # Clean the text and remove the original prompt
-            clean_text = re.sub("<$|<END$", "", new_text)
-            if full_prompt in clean_text:
-                clean_text = clean_text.replace(full_prompt, "")
+        # Decode the response
+        response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+        response = response.replace(full_prompt, "").strip()
 
-            # Only yield new parts
-            if len(clean_text) > len(full_response):
-                new_part = clean_text[len(full_response) :]
-                full_response = clean_text
-                yield new_part
-
-        thread.join()
+        return response

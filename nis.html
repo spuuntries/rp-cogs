@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
+    <div id="example-container"></div>
+    <script>
+      // if using synchronous loading, will be called once the DOM is ready
+      turnstile.ready(function () {
+        turnstile.render("#example-container", {
+          sitekey: "0x4AAAAAABhz1K9KeD4BHNPK",
+          callback: function (token) {
+            console.log(`Challenge Success ${token}`);
+          },
+        });
+      });
+    </script>
+  </body>
+</html>
