@@ -1,0 +1,27 @@
+image: "r8.im/spuuntries/ilearnmate-icts"
+build:
+  gpu: true
+  cuda: "12.2"
+  system_packages:
+    - "wget"
+    - "cmake"
+    - "g++"
+    - "build-essential"
+  python_version: "3.11"
+  python_packages:
+    - cog==0.9.6
+    - huggingface_hub[cli]==0.20.3
+    - hf_transfer==0.1.6
+    - repeng==0.4.0
+    - transformers==4.38.2
+    - torch==2.2.1
+    - bitsandbytes==0.43.1
+    - sentencepiece==0.1.99
+    - protobuf==3.20.3
+  run:
+    - "pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu112"
+    - "pip install flash-attn --no-build-isolation"
+    # Download the model weights to ./model directory
+    - "python -c 'from huggingface_hub import snapshot_download; snapshot_download(repo_id=\"NousResearch/Hermes-2-Pro-Mistral-7B\", local_dir=\"./model\", allow_patterns=[\"*.safetensors\", \"*.json\", \"*.model\"])'"
+
+  predict: "predict.py:Predictor"
