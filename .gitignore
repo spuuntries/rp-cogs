@@ -1,3 +1,4 @@
 .cog
 *.zip
 ref/
+__pycache__/
