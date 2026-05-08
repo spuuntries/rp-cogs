@@ -1,0 +1,3 @@
+[submodule "dfk3-queeree/queeree"]
+	path = dfk3-queeree/queeree
+	url = https://github.com/aitf-its-tim3-dfk/Queeree

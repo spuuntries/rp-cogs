@@ -1,0 +1,9 @@
+sanic==24.12.0
+sanic-ext==24.12.0
+python-dotenv==1.1.0
+openai==1.82.0
+httpx==0.28.1
+sentence-transformers==4.1.0
+hnswlib==0.8.0
+numpy==2.2.5
+pydantic==2.11.3

@@ -1,0 +1,9 @@
+image: "r8.im/spuuntries/dfk3-queeree"
+build:
+  gpu: true
+  system_packages:
+    - "git"
+    - "wget"
+  python_version: "3.11"
+  python_requirements: requirements.txt
+predict: "predict.py:Predictor"
